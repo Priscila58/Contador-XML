@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador de XMLs</title>
+
+    <link rel="icon" type="image/jpeg" href="icone.jpg">
+
+    <!-- FAVICONS: Adicione seus ícones aqui --><!-- Para navegadores modernos (geralmente PNG, SVG) --><link rel="icon" type="image/png" href="favicon.png"> 
+    <!-- Para navegadores mais antigos (tradicionalmente ICO) --><link rel="icon" type="image/x-icon" href="favicon.ico">
+    <!-- Você pode adicionar mais tamanhos para diferentes dispositivos se desejar --><!-- Ex: <link rel="apple-touch-icon" href="apple-touch-icon.png"> para ícones de tela inicial em iOS --><!-- Carrega Tailwind CSS para estilização moderna e responsiva --><script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #10B981; /* Emerald 500 */
+            --secondary: #059669; /* Emerald 600 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: var(--secondary);
+        }
+        .error-message {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            color: #ef4444;
+        }
+        .success-message {
+            background-color: #ecfdf5;
+            border-left: 4px solid var(--primary); /* corrigido de 44px para 4px */
+            color: var(--secondary);
+        }
+        .warning-message {
+            background-color: #fff7ed;
+            border-left: 4px solid #f59e0b;
+            color: #92400e;
+        }
+        /* Estilo para a barra de pesquisa */
+        .search-input {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            width: 100%;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        .search-input:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        <!-- Título e Introdução --><header class="text-center p-6 bg-white card">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900">
+                Contador de XML 
+            </h1>
+            <p class="mt-2 text-gray-600">
+                Carregue os arquivos XML do dia para calcular o total das vendas.
+            </p>
+        </header>
+
+        <!-- Seção de Upload de Arquivos --><div class="card p-6">
+            <label for="xmlInput" class="block text-lg font-semibold text-gray-700 mb-3">
+                1. Selecione os Arquivos XML 
+            </label>
+            <input type="file" id="xmlInput" multiple accept=".xml"
+                   class="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 transition duration-150 ease-in-out bg-gray-50 hover:bg-gray-100"
+                   onchange="handleFiles(this.files)">
+            <p id="fileCount" class="mt-2 text-sm text-gray-500">
+                Nenhum arquivo selecionado.
+            </p>
+        </div>
+
+        <!-- Seção de Resultados (Inicialmente Oculta) --><div id="resultsArea" class="space-y-6 hidden">
+            <!-- Resumo Global do Dia --><div class="card p-6 border-b-4 border-emerald-500">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V4m0 12v4m-6-2h12"></path></svg>
+                    Total Consolidado do Dia
+                </h2>
+                <div class="text-4xl font-extrabold text-gray-900" id="globalTotal">
+                    R$ 0,00
+                </div>
+                <p id="processedStores" class="mt-1 text-sm text-gray-500"></p>
+            </div>
+
+            <!-- Detalhes e Erros por Loja --><div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Coluna de Totais por Loja --><div class="lg:col-span-2 card p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">
+                        Totais de Venda por Dia
+                    </h3>
+                    
+                    <!-- Adicionando o campo de pesquisa --><div class="mb-4">
+                        <input type="text" id="storeSearch" onkeyup="filterStores()" placeholder="Buscar loja por CNPJ ou nome do arquivo..." class="search-input">
+                    </div>
+
+                    <ul id="storeTotalsList" class="space-y-3">
+                        <li class="text-gray-500">Nenhuma Nota processada</li>
+                    </ul>
+                </div>
+
+                <!-- Coluna de Erros Encontrados --><div class="lg:col-span-1 card p-6 bg-red-50">
+                    <h3 class="text-xl font-semibold text-red-700 border-b border-red-200 pb-2 mb-4 flex items-center">
+                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.3 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        Erros e Avisos
+                    </h3>
+                    <ul id="errorList" class="space-y-3">
+                        <li id="noErrorsFound" class="success-message p-3 rounded-lg">
+                            Nenhum erro crítico encontrado nos arquivos.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis Globais
+        let globalData = [];
+        const apiKey = ""; // Chave de API deixada vazia para uso no ambiente Canvas.
+
+        /**
+         * Simula a função de formatação de moeda brasileira.
+         * @param {number} value - O valor numérico.
+         * @returns {string} O valor formatado como moeda.
+         */
+        function formatCurrency(value) {
+            if (typeof value !== 'number' || isNaN(value)) {
+                return 'R$ 0,00';
+            }
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value);
+        }
+
+        /**
+         * Manipula a seleção de arquivos e inicia o processamento.
+         * @param {FileList} files - Lista de arquivos selecionados.
+         */
+        async function handleFiles(files) {
+            globalData = [];
+            document.getElementById('fileCount').textContent = `${files.length} arquivo(s) selecionado(s). Processando...`;
+            document.getElementById('resultsArea').classList.add('hidden');
+            
+            const storeTotalsList = document.getElementById('storeTotalsList');
+            const errorList = document.getElementById('errorList');
+            
+            storeTotalsList.innerHTML = '';
+            errorList.innerHTML = '<li id="noErrorsFound" class="success-message p-3 rounded-lg">Aguardando processamento...</li>';
+
+            if (files.length === 0) {
+                document.getElementById('fileCount').textContent = 'Nenhum arquivo selecionado.';
+                return;
+            }
+
+            // Mapeia os arquivos para um array de Promises
+            const processingPromises = Array.from(files).map(file => {
+                return new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const xmlString = event.target.result;
+                        const result = processXML(xmlString, file.name);
+                        globalData.push(result);
+                        resolve(result);
+                    };
+                    reader.onerror = () => {
+                        // Trata erro de leitura de arquivo
+                        globalData.push({
+                            fileName: file.name,
+                            storeId: 'N/A',
+                            totalValue: 0,
+                            success: false,
+                            errors: [`Erro: Falha ao ler o arquivo (${file.name}). O arquivo pode estar corrompido ou muito grande.`],
+                        });
+                        resolve();
+                    };
+                    reader.readAsText(file);
+                });
+            });
+
+            // Aguarda que todos os arquivos sejam processados
+            await Promise.all(processingPromises);
+            
+            // Renderiza os resultados após o processamento completo
+            renderResults();
+        }
+
+        /**
+         * Processa o conteúdo de um único arquivo XML.
+         * Usa tags padrão de XMLs fiscais (NFe/CFe): CNPJ em emit e vNF para o valor total.
+         * @param {string} xmlString - O conteúdo XML como string.
+         * @param {string} fileName - O nome do arquivo.
+         * @returns {object} Objeto com os dados extraídos e erros.
+         */
+        function processXML(xmlString, fileName) {
+            const data = {
+                fileName,
+                storeId: 'N/A',
+                totalValue: 0,
+                success: true,      // false apenas se houver erro crítico
+                errors: [],         // erros críticos
+                warnings: [],       // avisos (não críticos)
+            };
+
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+
+            // Verifica parsererror de forma robusta
+            if (xmlDoc.getElementsByTagName("parsererror").length > 0 || xmlDoc.querySelector('parsererror')) {
+                data.success = false;
+                data.errors.push("Erro Crítico: O arquivo XML está mal formado ou corrompido. Não foi possível fazer o parse.");
+                return data;
+            }
+
+            // Helper: busca por tag comparando localName (ignora namespace e case)
+            function findByLocalName(root, localName) {
+                const nodes = root.getElementsByTagName('*');
+                const name = localName.toLowerCase();
+                for (let i = 0; i < nodes.length; i++) {
+                    if (nodes[i].localName && nodes[i].localName.toLowerCase() === name) {
+                        return nodes[i];
+                    }
+                }
+                return null;
+            }
+
+            // Extrair CNPJ (procura por qualquer tag com localName 'cnpj')
+            const storeIdNode = findByLocalName(xmlDoc, 'cnpj');
+            if (storeIdNode && storeIdNode.textContent) {
+                const cnpj = storeIdNode.textContent.trim().replace(/\D/g, '');
+                data.storeId = cnpj || fileName;
+            } else {
+                data.warnings.push("Aviso: Não foi possível identificar o CNPJ do Emissor (tag <CNPJ> ausente). Usando o nome do arquivo.");
+                data.storeId = fileName;
+            }
+
+            // Extrair vNF (valor total) por localName 'vnf'
+            const totalValueNode = findByLocalName(xmlDoc, 'vnf');
+            if (totalValueNode && totalValueNode.textContent) {
+                let valueText = totalValueNode.textContent.trim();
+                // Normaliza formatos BR: remove espaços, trata separador de milhares e decimal
+                valueText = valueText.replace(/\s/g, '');
+                // Se houver vírgula, assume formato BR: "1.234,56" -> "1234.56"
+                if (valueText.indexOf(',') !== -1) {
+                    valueText = valueText.replace(/\./g, '').replace(',', '.');
+                } else {
+                    // remove possíveis separadores de milhares não convencionais
+                    valueText = valueText.replace(/,/g, '');
+                }
+
+                const value = parseFloat(valueText);
+                if (isNaN(value)) {
+                    data.success = false;
+                    data.errors.push(`Erro: O valor total encontrado ("${totalValueNode.textContent.trim()}") não é um número válido.`);
+                } else {
+                    data.totalValue = value;
+                    if (value < 0.01) {
+                        data.warnings.push(`Aviso: O valor total da venda (${formatCurrency(value)}) é zero ou muito baixo. Verifique se o arquivo está correto.`);
+                    }
+                }
+            } else {
+                data.success = false;
+                data.errors.push("Erro Crítico: Tag do valor total da venda (<vNF>) não encontrada ou vazia. O arquivo pode não ser uma NFe/CFe válida.");
+            }
+
+            return data;
+        }
+
+        /**
+         * Filtra e renderiza a lista de totais das Notas com base no texto de busca.
+         */
+        function filterStores() {
+            const searchInput = document.getElementById('storeSearch');
+            const filter = (searchInput ? searchInput.value : '').toLowerCase();
+            const storeTotalsList = document.getElementById('storeTotalsList');
+            storeTotalsList.innerHTML = '';
+
+            const filteredData = globalData.filter(item => {
+                const searchString = (String(item.storeId) + ' ' + item.fileName).toLowerCase();
+                return searchString.includes(filter);
+            });
+
+            if (filteredData.length === 0 && globalData.length > 0) {
+                storeTotalsList.innerHTML = '<li class="text-gray-500 p-3">Nenhuma Nota corresponde à busca.</li>';
+            } else if (globalData.length === 0) {
+                storeTotalsList.innerHTML = '<li class="text-gray-500">Nenhuma Nota processada.</li>';
+            } else {
+                filteredData.forEach(item => {
+                    const li = document.createElement('li');
+                    // Prioriza erro crítico > aviso > sucesso
+                    let statusClass, icon;
+                    if (!item.success || (item.errors && item.errors.length > 0)) {
+                        statusClass = 'text-red-600';
+                        icon = `<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                    } else if (item.warnings && item.warnings.length > 0) {
+                        statusClass = 'text-yellow-600';
+                        icon = `<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12A9 9 0 113 12a9 9 0 0118 0z"></path></svg>`;
+                    } else {
+                        statusClass = 'text-green-600';
+                        icon = `<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                    }
+
+                    li.className = "flex justify-between items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition";
+                    li.innerHTML = `
+                        <span class="font-medium text-gray-700 truncate">
+                            ${icon} Loja: ${item.storeId}
+                            <span class="text-xs text-gray-500 ml-2">(${item.fileName})</span>
+                        </span>
+                        <span class="font-bold text-lg ${statusClass}">
+                            ${formatCurrency(item.totalValue)}
+                        </span>
+                    `;
+                    storeTotalsList.appendChild(li);
+                });
+            }
+        }
+
+        /**
+         * Renderiza os resultados globais e detalhados na interface.
+         */
+        function renderResults() {
+            const globalTotalEl = document.getElementById('globalTotal');
+            const processedStoresEl = document.getElementById('processedStores');
+            const errorList = document.getElementById('errorList');
+            const resultsArea = document.getElementById('resultsArea');
+
+            const totalValueSum = globalData.reduce((sum, item) => sum + (Number(item.totalValue) || 0), 0);
+            globalTotalEl.textContent = formatCurrency(totalValueSum);
+
+            const totalStores = globalData.length;
+            const successCount = globalData.filter(d => d.success && d.errors.length === 0 && d.warnings.length === 0).length;
+            const errorCount = globalData.filter(d => !d.success || d.errors.length > 0 || d.warnings.length > 0).length;
+
+            processedStoresEl.innerHTML = `Processadas: <span class="font-bold text-gray-700">${totalStores} notas</span>. Sucesso: <span class="${successCount === totalStores ? 'text-green-600' : 'text-yellow-600'} font-bold">${successCount}</span>. Com Erros/Avisos: <span class="${errorCount > 0 ? 'text-red-600' : 'text-gray-500'} font-bold">${errorCount}</span>.`;
+
+            // Renderiza a lista de notas
+            filterStores();
+
+            // Renderiza erros e avisos separadamente (erros críticos em vermelho, avisos em amarelo)
+            errorList.innerHTML = '';
+            let totalProblems = 0;
+            globalData.forEach(item => {
+                const storeIdentifier = item.storeId !== item.fileName ? `CNPJ ${item.storeId} (${item.fileName})` : item.fileName;
+                if (item.errors && item.errors.length > 0) {
+                    totalProblems += item.errors.length;
+                    item.errors.forEach(msg => {
+                        const li = document.createElement('li');
+                        li.className = "error-message p-3 rounded-lg text-sm";
+                        li.innerHTML = `<span class="font-semibold">[Loja ${storeIdentifier}]</span> ${msg}`;
+                        errorList.appendChild(li);
+                    });
+                }
+                if (item.warnings && item.warnings.length > 0) {
+                    totalProblems += item.warnings.length;
+                    item.warnings.forEach(msg => {
+                        const li = document.createElement('li');
+                        li.className = "warning-message p-3 rounded-lg text-sm";
+                        li.innerHTML = `<span class="font-semibold">[Loja ${storeIdentifier}]</span> ${msg}`;
+                        errorList.appendChild(li);
+                    });
+                }
+            });
+
+            if (totalProblems === 0) {
+                errorList.innerHTML = '<li id="noErrorsFound" class="success-message p-3 rounded-lg">Nenhum erro crítico ou aviso encontrado!</li>';
+            }
+
+            resultsArea.classList.remove('hidden');
+        }
+
+        // Adiciona um listener para mostrar a área de resultados após a seleção inicial
+        document.addEventListener('DOMContentLoaded', () => {
+            const xmlInput = document.getElementById('xmlInput');
+            if (xmlInput.files.length > 0) {
+                handleFiles(xmlInput.files);
+            }
+        });
+    </script>
+    <footer class="text-center py-6 text-gray-500 text-sm font-light">
+     &copy; Priscila Trindade 2025 Todos os direitos reservados
+    </footer>
+    </body>
+</html>
